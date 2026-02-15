@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Location Sender</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", sans-serif;
+        background: #f0f4f8;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 24px;
+      }
+      .card {
+        background: white;
+        border-radius: 20px;
+        padding: 32px 24px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 360px;
+        text-align: center;
+      }
+      h1 {
+        font-size: 1.4rem;
+        color: #1a73e8;
+        margin-bottom: 8px;
+      }
+      p {
+        color: #666;
+        font-size: 0.9rem;
+        margin-bottom: 24px;
+      }
+      #status {
+        padding: 12px;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+        background: #f0f4f8;
+        color: #444;
+      }
+      #status.active {
+        background: #e6f4ea;
+        color: #2e7d32;
+      }
+      #status.error {
+        background: #fdecea;
+        color: #c0392b;
+      }
+      button {
+        width: 100%;
+        padding: 14px;
+        border: none;
+        border-radius: 25px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      #startBtn {
+        background: #1a73e8;
+        color: white;
+        margin-bottom: 12px;
+      }
+      #stopBtn {
+        background: #f0f4f8;
+        color: #c0392b;
+        display: none;
+      }
+      #coords {
+        font-size: 0.8rem;
+        color: #999;
+        margin-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>📍 Location Tracker</h1>
+      <p>This page sends your live location to your map.</p>
+      <div id="status">Press Start to begin tracking.</div>
+      <button id="startBtn" onclick="startTracking()">▶️ Start Tracking</button>
+      <button id="stopBtn" onclick="stopTracking()">⏹ Stop Tracking</button>
+      <div id="coords"></div>
+    </div>
+
+    <script type="module">
+      // ✅ PASTE YOUR FIREBASE CONFIG HERE
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+      import {
+        getDatabase,
+        ref,
+        set,
+      } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyDrMXNTbh_8Fuv9yUyD1dCLyGqyeTeabO0",
+        authDomain: "my-location-tracker-13709.firebaseapp.com",
+        databaseURL:
+          "https://my-location-tracker-13709-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "my-location-tracker-13709",
+        storageBucket: "my-location-tracker-13709.firebasestorage.app",
+        messagingSenderId: "548168988971",
+        appId: "1:548168988971:web:c29c137ae0044958eaad6e",
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getDatabase(app);
+
+      let watchId = null;
+
+      window.startTracking = function () {
+        const statusEl = document.getElementById("status");
+        const startBtn = document.getElementById("startBtn");
+        const stopBtn = document.getElementById("stopBtn");
+
+        if (!navigator.geolocation) {
+          statusEl.textContent = "❌ Geolocation not supported.";
+          statusEl.className = "error";
+          return;
+        }
+
+        statusEl.textContent = "🔍 Getting location...";
+        statusEl.className = "";
+        startBtn.style.display = "none";
+        stopBtn.style.display = "block";
+
+        watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const accuracy = Math.round(position.coords.accuracy);
+            const timestamp = Date.now();
+
+            set(ref(db, "location"), { lat, lng, accuracy, timestamp });
+
+            statusEl.textContent = "✅ Tracking active — sending location...";
+            statusEl.className = "active";
+            document.getElementById("coords").textContent =
+              `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)} · ~${accuracy}m`;
+          },
+          (error) => {
+            const msgs = {
+              1: "❌ Permission denied.",
+              2: "❌ Location unavailable.",
+              3: "❌ Timed out.",
+            };
+            statusEl.textContent = msgs[error.code] || "❌ Error.";
+            statusEl.className = "error";
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+        );
+      };
+
+      window.stopTracking = function () {
+        if (watchId !== null) {
+          navigator.geolocation.clearWatch(watchId);
+          watchId = null;
+        }
+        document.getElementById("status").textContent = "⏹ Tracking stopped.";
+        document.getElementById("status").className = "";
+        document.getElementById("startBtn").style.display = "block";
+        document.getElementById("stopBtn").style.display = "none";
+      };
+    </script>
+  </body>
+</html>

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live Location Map</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", sans-serif;
+        background: #f0f4f8;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+      }
+      header {
+        width: 100%;
+        background: #1a73e8;
+        color: white;
+        padding: 16px 24px;
+        text-align: center;
+      }
+      header h1 {
+        font-size: 1.4rem;
+      }
+      #status {
+        margin: 16px auto 8px;
+        padding: 12px 20px;
+        border-radius: 10px;
+        background: white;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+        max-width: 800px;
+        width: calc(100% - 48px);
+        text-align: center;
+        color: #444;
+        font-size: 0.95rem;
+      }
+      #status.active {
+        background: #e6f4ea;
+        color: #2e7d32;
+      }
+      #status.error {
+        background: #fdecea;
+        color: #c0392b;
+      }
+      #coords {
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 12px;
+      }
+      #map {
+        width: calc(100% - 48px);
+        max-width: 800px;
+        height: 600px;
+        border-radius: 16px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        overflow: hidden;
+        margin-bottom: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <header><h1>📍 Live Location Map</h1></header>
+    <div id="status">⏳ Waiting for location data from your phone...</div>
+    <div id="coords"></div>
+    <div id="map"></div>
+
+    <script type="module">
+      // ✅ PASTE YOUR FIREBASE CONFIG HERE
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+      import {
+        getDatabase,
+        ref,
+        onValue,
+      } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyDrMXNTbh_8Fuv9yUyD1dCLyGqyeTeabO0",
+        authDomain: "my-location-tracker-13709.firebaseapp.com",
+        databaseURL:
+          "https://my-location-tracker-13709-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "my-location-tracker-13709",
+        storageBucket: "my-location-tracker-13709.firebasestorage.app",
+        messagingSenderId: "548168988971",
+        appId: "1:548168988971:web:c29c137ae0044958eaad6e",
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getDatabase(app);
+
+      let map, marker, accuracyCircle;
+      let firstUpdate = true;
+
+      // Wait for Google Maps to load
+      window.initMap = function () {
+        map = new google.maps.Map(document.getElementById("map"), {
+          center: { lat: 20, lng: 0 },
+          zoom: 2,
+          mapTypeControl: false,
+          streetViewControl: false,
+        });
+
+        // Listen for location updates from Firebase
+        const locationRef = ref(db, "location");
+        onValue(locationRef, (snapshot) => {
+          const data = snapshot.val();
+          if (!data) return;
+
+          const { lat, lng, accuracy, timestamp } = data;
+          const position = { lat, lng };
+          const time = new Date(timestamp).toLocaleTimeString();
+
+          // Update status
+          const statusEl = document.getElementById("status");
+          statusEl.textContent = `✅ Live location receiving — Last update: ${time}`;
+          statusEl.className = "active";
+          document.getElementById("coords").textContent =
+            `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)} · ~${accuracy}m accuracy`;
+
+          // Move or create marker
+          if (marker) {
+            marker.setPosition(position);
+          } else {
+            marker = new google.maps.Marker({
+              position,
+              map,
+              title: "📍 Live Location",
+              animation: google.maps.Animation.DROP,
+            });
+          }
+
+          // Draw accuracy circle
+          if (accuracyCircle) {
+            accuracyCircle.setCenter(position);
+            accuracyCircle.setRadius(accuracy);
+          } else {
+            accuracyCircle = new google.maps.Circle({
+              map,
+              center: position,
+              radius: accuracy,
+              fillColor: "#1a73e8",
+              fillOpacity: 0.15,
+              strokeColor: "#1a73e8",
+              strokeOpacity: 0.4,
+              strokeWeight: 1,
+            });
+          }
+
+          // Center map on first update
+          if (firstUpdate) {
+            map.setCenter(position);
+            map.setZoom(16);
+            firstUpdate = false;
+          }
+        });
+      };
+    </script>
+
+    <!-- ✅ Replace YOUR_GOOGLE_MAPS_API_KEY with your Google Maps API key -->
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB5d8tk3huu7F2qXNypT6M58ohi7WnxxFA&callback=initMap"
+      async
+      defer
+    ></script>
+  </body>
+</html>
